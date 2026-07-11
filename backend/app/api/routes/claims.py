@@ -1,13 +1,21 @@
 from datetime import datetime
 from typing import List, Optional
-
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
+# In-memory image cache for the demo (avoids disk I/O)
+_IMAGE_CACHE: dict[int, bytes] = {}
+
+from ...core.database import engine, Base
+from ...api.deps import get_db
+from ...models import Claim
 from ...services.ai_engine import run_cnn_damage_assessment
 
-router = APIRouter()
+# Ensure tables are created
+Base.metadata.create_all(bind=engine)
 
+router = APIRouter()
 
 class ClaimItem(BaseModel):
     id: str
@@ -21,7 +29,6 @@ class ClaimItem(BaseModel):
     status: str
     created_at: str
 
-
 class RecommendationResponse(BaseModel):
     claim_id: str
     classification: str
@@ -32,59 +39,92 @@ class RecommendationResponse(BaseModel):
     explanation: str
     feature_importance: List[str]
 
-
-CLAIMS: List[ClaimItem] = [
-    ClaimItem(
-        id="CLM-1001",
-        claimant_name="Ava Thompson",
-        policy_number="POL-2048",
-        damage_type="Rear Bumper",
-        severity="Moderate",
-        confidence=0.93,
-        estimated_cost_range="$1,800 - $3,200",
-        fraud_risk_score=0.11,
-        status="Pending Review",
-        created_at=datetime.utcnow().isoformat(),
-    )
-]
-
-
 @router.get("", response_model=List[ClaimItem])
-def list_claims():
-    return CLAIMS
-
+def list_claims(db: Session = Depends(get_db)):
+    claims_db = db.query(Claim).order_by(Claim.created_at.desc()).limit(10).all()
+    result = []
+    for c in claims_db:
+        result.append(ClaimItem(
+            id=f"CLM-{c.id + 1000}",
+            claimant_name=c.claimant_name,
+            policy_number=c.policy_number,
+            damage_type=c.damage_type,
+            severity=c.severity,
+            confidence=c.confidence_score or 0.0,
+            estimated_cost_range=c.estimated_cost_range or "",
+            fraud_risk_score=c.fraud_risk_score or 0.0,
+            status=c.status,
+            created_at=c.created_at.isoformat() if c.created_at else ""
+        ))
+    return result
 
 @router.post("/submit")
-def submit_claim(
+async def submit_claim(
     claimant_name: str = Form(...),
     policy_number: str = Form(...),
     damage_type: str = Form(...),
     image: Optional[UploadFile] = File(default=None),
     pdf_document: Optional[UploadFile] = File(default=None),
+    db: Session = Depends(get_db)
 ):
-    claim = ClaimItem(
-        id=f"CLM-{len(CLAIMS) + 1000}",
+    # Read image bytes if an image was uploaded
+    image_bytes = None
+    if image:
+        image_bytes = await image.read()
+    
+    new_claim = Claim(
         claimant_name=claimant_name,
         policy_number=policy_number,
         damage_type=damage_type,
-        severity="Moderate",
-        confidence=0.92,
-        estimated_cost_range="$1,500 - $2,900",
-        fraud_risk_score=0.14,
-        status="Pending Review",
-        created_at=datetime.utcnow().isoformat(),
+        severity="Pending",
+        confidence_score=0.0,
+        estimated_cost_range="Pending",
+        fraud_risk_score=0.0,
+        status="Pending Analysis"
     )
-    CLAIMS.insert(0, claim)
-    return {"message": "Claim submitted successfully", "claim": claim.model_dump()}
-
+    db.add(new_claim)
+    db.commit()
+    db.refresh(new_claim)
+    
+    # Store image bytes temporarily in session for analyze endpoint
+    # (In production, upload to S3 and store the path)
+    if image_bytes:
+        _IMAGE_CACHE[new_claim.id] = image_bytes
+    
+    return {
+        "message": "Claim submitted successfully", 
+        "claim": {
+            "id": f"CLM-{new_claim.id + 1000}",
+            "status": new_claim.status
+        }
+    }
 
 @router.post("/analyze", response_model=RecommendationResponse)
-def analyze_claim():
+def analyze_claim(db: Session = Depends(get_db)):
+    # Get the latest claim for the demo
+    claim = db.query(Claim).order_by(Claim.id.desc()).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="No claims found to analyze")
+
+    # Call the real CNN engine with image bytes if available
+    image_bytes = _IMAGE_CACHE.pop(claim.id, None)
+    claim_id_str = f"CLM-{claim.id + 1000}"
     assessment = run_cnn_damage_assessment(
-        claim_metadata={"damage_type": "Rear bumper"}
+        image_bytes=image_bytes,
+        claim_metadata={"damage_type": claim.damage_type},
+        claim_id=claim_id_str
     )
+    
+    # Update the DB with the actual AI results
+    claim.severity = assessment.severity
+    claim.confidence_score = assessment.confidence_score
+    claim.estimated_cost_range = assessment.estimated_cost_range
+    claim.fraud_risk_score = assessment.fraud_risk_score
+    claim.status = "Pending Review"
+    db.commit()
+
     return RecommendationResponse(
-        claim_id="CLM-1001",
+        claim_id=f"CLM-{claim.id + 1000}",
         classification=assessment.classification,
         severity=assessment.severity,
         confidence_score=assessment.confidence_score,
@@ -94,20 +134,25 @@ def analyze_claim():
         feature_importance=assessment.feature_importance,
     )
 
-
 @router.patch("/{claim_id}/review")
-def review_claim(claim_id: str, decision: str, reviewer_notes: str = ""):
-    if not any(claim.id == claim_id for claim in CLAIMS):
+def review_claim(claim_id: str, decision: str, reviewer_notes: str = "", db: Session = Depends(get_db)):
+    try:
+        actual_id = int(claim_id.replace("CLM-", "")) - 1000
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid claim ID format")
+        
+    claim = db.query(Claim).filter(Claim.id == actual_id).first()
+    if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
 
-    for claim in CLAIMS:
-        if claim.id == claim_id:
-            claim.status = decision.title()
-            break
+    claim.status = decision.title()
+    if reviewer_notes:
+        claim.reviewer_notes = reviewer_notes
+    db.commit()
 
     return {
         "message": "Decision stored successfully",
         "claim_id": claim_id,
-        "decision": decision,
+        "decision": claim.status,
         "reviewer_notes": reviewer_notes,
     }

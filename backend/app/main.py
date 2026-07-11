@@ -1,5 +1,7 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .api.routes import analytics, auth, claims, reports
 
@@ -26,6 +28,11 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(claims.router, prefix="/api/claims", tags=["Claims"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+
+# Serve generated Grad-CAM heatmap images
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "heatmaps")
+os.makedirs(_STATIC_DIR, exist_ok=True)
+app.mount("/static/heatmaps", StaticFiles(directory=_STATIC_DIR), name="heatmaps")
 
 
 @app.get("/")

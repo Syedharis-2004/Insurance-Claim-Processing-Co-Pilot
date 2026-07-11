@@ -1439,6 +1439,20 @@ export class AppComponent implements OnInit {
   }
 
   generatePdfReport(): void {
-    alert('Mock: Generating comprehensive PDF report including claim details, Grad-CAM heatmaps, and AI confidence score...');
+    const url = `http://127.0.0.1:8000/api/reports/${this.activeClaimId}/pdf`;
+    this.http.get(url, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = `claimwise_${this.activeClaimId}.pdf`;
+        link.click();
+        URL.revokeObjectURL(objectUrl);
+      },
+      error: (err) => {
+        console.error('PDF download failed:', err);
+        alert('PDF download failed. Please ensure the backend is running and a claim has been processed.');
+      }
+    });
   }
 }
