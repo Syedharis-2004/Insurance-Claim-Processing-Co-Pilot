@@ -295,7 +295,8 @@ import { FormsModule } from '@angular/forms';
               </table>
             </div>
           </div>
-        </ng-container>
+        </div>
+      </ng-container>
 
         <ng-container *ngIf="currentView === 'architecture'">
           <div class="cw-page-header">
