@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
@@ -114,13 +115,13 @@ import { FormsModule } from '@angular/forms';
                   <span class="cw-upload-icon">🖼️</span>
                   <span class="cw-upload-label">Upload Image</span>
                   <span class="cw-upload-hint">PNG, JPG up to 10MB</span>
-                  <input type="file" id="imageUpload" class="cw-file-hidden" accept="image/*" aria-label="Damage image upload" />
+                  <input type="file" id="imageUpload" class="cw-file-hidden" accept="image/*" aria-label="Damage image upload" (change)="onImageSelected($event)" />
                 </label>
                 <label class="cw-upload-box" for="docUpload">
                   <span class="cw-upload-icon">📄</span>
                   <span class="cw-upload-label">Upload Document</span>
                   <span class="cw-upload-hint">PDF, DOC up to 25MB</span>
-                  <input type="file" id="docUpload" class="cw-file-hidden" accept=".pdf,.doc,.docx" aria-label="Supporting document upload" />
+                  <input type="file" id="docUpload" class="cw-file-hidden" accept=".pdf,.doc,.docx" aria-label="Supporting document upload" (change)="onDocSelected($event)" />
                 </label>
               </div>
 
@@ -129,8 +130,8 @@ import { FormsModule } from '@angular/forms';
                   <span *ngIf="!isLoading">⚡ Submit Claim</span>
                   <span *ngIf="isLoading" class="cw-spinner-wrap"><span class="cw-spinner"></span> Processing…</span>
                 </button>
-                <button class="btn-glass" type="button" (click)="simulateReview('approve')">✓ Approve Demo</button>
-                <button class="btn-ghost-danger" type="button" (click)="simulateReview('reject')">✗ Reject Demo</button>
+                <button class="btn-glass" type="button" (click)="submitReview('approve')">✓ Approve Demo</button>
+                <button class="btn-ghost-danger" type="button" (click)="submitReview('reject')">✗ Reject Demo</button>
               </div>
             </form>
           </div>
@@ -229,13 +230,13 @@ import { FormsModule } from '@angular/forms';
               <span class="cw-review-badge" [ngClass]="reviewBadgeClass">{{ reviewState }}</span>
             </div>
             <div class="cw-review-actions">
-              <button class="btn-action btn-approve" (click)="simulateReview('approve')">
+              <button class="btn-action btn-approve" (click)="submitReview('approve')">
                 <span>✓</span> Approve
               </button>
-              <button class="btn-action btn-reject" (click)="simulateReview('reject')">
+              <button class="btn-action btn-reject" (click)="submitReview('reject')">
                 <span>✗</span> Reject
               </button>
-              <button class="btn-action btn-modify" (click)="simulateReview('modify')">
+              <button class="btn-action btn-modify" (click)="submitReview('modify')">
                 <span>✎</span> Modify
               </button>
             </div>
@@ -1290,6 +1291,11 @@ export class AppComponent implements OnInit {
   reviewState = 'Pending Review';
   isLoading = false;
 
+  selectedImage: File | null = null;
+  selectedDoc: File | null = null;
+  
+  constructor(private http: HttpClient) {}
+
   stats = [
     { label: 'Total Claims', value: '1,284', icon: '📋', color: 'blue', trend: 1, trendLabel: '12% this month' },
     { label: 'Pending Reviews', value: '186', icon: '⏳', color: 'amber', trend: -1, trendLabel: '5% vs last wk' },
@@ -1351,40 +1357,85 @@ export class AppComponent implements OnInit {
     return 'review-pending';
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.fetchClaims();
+  }
+
+  fetchClaims(): void {
+    this.http.get<any[]>('http://127.0.0.1:8000/api/claims').subscribe({
+      next: (claims) => {
+        this.recentClaims = claims.map(c => ({
+          id: c.id,
+          claimant: c.claimant_name,
+          type: c.damage_type.split(' ')[0],
+          status: c.status,
+          statusColor: c.status === 'Approved' ? 'emerald' : c.status === 'Pending Review' ? 'amber' : c.status === 'Rejected' ? 'rose' : 'violet',
+          amount: c.estimated_cost_range
+        }));
+      },
+      error: (err) => console.error(err)
+    });
+  }
+
+  onImageSelected(event: any): void {
+    if (event.target.files.length > 0) {
+      this.selectedImage = event.target.files[0];
+    }
+  }
+
+  onDocSelected(event: any): void {
+    if (event.target.files.length > 0) {
+      this.selectedDoc = event.target.files[0];
+    }
+  }
 
   submitClaim(): void {
     this.isLoading = true;
-    setTimeout(() => {
-      this.activeClaimId = `CLM-${Math.floor(1000 + Math.random() * 9000)}`;
-      this.reviewState = 'Pending Review';
-      this.aiResult = {
-        classification: 'Vehicle Damage',
-        severity: 'Moderate',
-        confidence: Math.floor(88 + Math.random() * 10),
-        estimatedCost: '$1,750 – $3,050',
-        fraudRisk: Math.floor(8 + Math.random() * 20),
-        explanation: `AI assessed the ${this.damageType.toLowerCase()} claim for ${this.claimantName} and flagged a balanced severity profile. Risk indicators are within normal thresholds.`,
-      };
+    const formData = new FormData();
+    formData.append('claimant_name', this.claimantName);
+    formData.append('policy_number', this.policyNumber);
+    formData.append('damage_type', this.damageType);
+    if (this.selectedImage) formData.append('image', this.selectedImage);
+    if (this.selectedDoc) formData.append('pdf_document', this.selectedDoc);
 
-      this.recentClaims.unshift({
-        id: this.activeClaimId,
-        claimant: this.claimantName,
-        type: this.damageType.split(' ')[0],
-        status: 'Pending',
-        statusColor: 'amber',
-        amount: '$' + (Math.floor(800 + Math.random() * 5000)).toLocaleString(),
-      });
-      if (this.recentClaims.length > 5) this.recentClaims.pop();
-
-      this.isLoading = false;
-    }, 1600);
+    this.http.post<any>('http://127.0.0.1:8000/api/claims/submit', formData).subscribe({
+      next: (res) => {
+        this.activeClaimId = res.claim.id;
+        this.reviewState = res.claim.status;
+        this.fetchClaims();
+        
+        this.http.post<any>('http://127.0.0.1:8000/api/claims/analyze', {}).subscribe({
+          next: (aiRes) => {
+            this.aiResult = {
+              classification: aiRes.classification,
+              severity: aiRes.severity,
+              confidence: Math.round(aiRes.confidence_score * 100),
+              estimatedCost: aiRes.estimated_cost_range,
+              fraudRisk: Math.round(aiRes.fraud_risk_score * 100),
+              explanation: aiRes.explanation,
+            };
+            this.isLoading = false;
+          },
+          error: (err) => { console.error(err); this.isLoading = false; }
+        });
+      },
+      error: (err) => { console.error(err); this.isLoading = false; }
+    });
   }
 
-  simulateReview(action: 'approve' | 'reject' | 'modify'): void {
-    if (action === 'approve') { this.reviewState = 'Approved'; return; }
-    if (action === 'reject') { this.reviewState = 'Rejected'; return; }
-    this.reviewState = 'Needs Correction';
+  submitReview(action: 'approve' | 'reject' | 'modify'): void {
+    let decision = '';
+    if (action === 'approve') decision = 'approved';
+    else if (action === 'reject') decision = 'rejected';
+    else decision = 'needs correction';
+
+    this.http.patch<any>(`http://127.0.0.1:8000/api/claims/${this.activeClaimId}/review?decision=${decision}`, {}).subscribe({
+      next: (res) => {
+        this.reviewState = res.decision.charAt(0).toUpperCase() + res.decision.slice(1);
+        this.fetchClaims();
+      },
+      error: (err) => console.error(err)
+    });
   }
 
   generatePdfReport(): void {
