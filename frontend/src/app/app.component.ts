@@ -18,10 +18,10 @@ import { FormsModule } from '@angular/forms';
             <span class="cw-brand-badge">v2.0</span>
           </div>
           <div class="cw-nav-center">
-            <a class="cw-nav-link active" href="#">Dashboard</a>
+            <a class="cw-nav-link" [class.active]="currentView === 'dashboard'" (click)="currentView = 'dashboard'; $event.preventDefault()" href="#">Dashboard</a>
+            <a class="cw-nav-link" [class.active]="currentView === 'architecture'" (click)="currentView = 'architecture'; $event.preventDefault()" href="#">Architecture</a>
             <a class="cw-nav-link" href="#">Claims</a>
             <a class="cw-nav-link" href="#">Analytics</a>
-            <a class="cw-nav-link" href="#">Reports</a>
           </div>
           <div class="cw-nav-actions">
             <div class="cw-status-pill">
@@ -36,6 +36,8 @@ import { FormsModule } from '@angular/forms';
 
       <!-- ── MAIN CONTENT ── -->
       <main class="cw-main">
+
+        <ng-container *ngIf="currentView === 'dashboard'">
 
         <!-- PAGE HEADER -->
         <div class="cw-page-header">
@@ -185,6 +187,29 @@ import { FormsModule } from '@angular/forms';
               <span class="cw-expl-label">🔍 AI Explanation</span>
               <p class="cw-expl-text">{{ aiResult.explanation }}</p>
             </div>
+
+            <div class="cw-heatmap-section" style="margin-top: 1rem;">
+              <span class="cw-expl-label">🌡️ Grad-CAM Heatmap</span>
+              <div class="cw-heatmap-img" style="height: 120px; background: linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(245,158,11,0.2) 50%, rgba(16,185,129,0.2) 100%); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.5rem;">
+                [Heatmap Visualization]
+              </div>
+            </div>
+
+            <div class="cw-feature-importance" style="margin-top: 1rem;">
+              <span class="cw-expl-label">📊 Feature Importance</span>
+              <div class="cw-metric-row" style="margin-bottom: 0.4rem;">
+                <span class="cw-metric-label" style="font-size: 0.7rem;">Panel Distortion</span>
+                <div class="cw-progress-wrap"><div class="cw-progress-bar" style="height: 4px;"><div class="cw-progress-fill cw-progress-rose" style="width: 85%"></div></div></div>
+              </div>
+              <div class="cw-metric-row" style="margin-bottom: 0.4rem;">
+                <span class="cw-metric-label" style="font-size: 0.7rem;">Paint Scratches</span>
+                <div class="cw-progress-wrap"><div class="cw-progress-bar" style="height: 4px;"><div class="cw-progress-fill cw-progress-amber" style="width: 45%"></div></div></div>
+              </div>
+              <div class="cw-metric-row" style="margin-bottom: 0.4rem;">
+                <span class="cw-metric-label" style="font-size: 0.7rem;">Structural Integrity</span>
+                <div class="cw-progress-wrap"><div class="cw-progress-bar" style="height: 4px;"><div class="cw-progress-fill cw-progress-emerald" style="width: 15%"></div></div></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -214,6 +239,9 @@ import { FormsModule } from '@angular/forms';
                 <span>✎</span> Modify
               </button>
             </div>
+            <button class="btn-action btn-pdf" (click)="generatePdfReport()" style="margin-top: 0.5rem; width: 100%; background: rgba(79, 142, 247, 0.12); color: var(--accent-blue); border-color: rgba(79, 142, 247, 0.25);">
+              <span>📄</span> Download PDF Report
+            </button>
           </div>
 
           <!-- ROI CALCULATOR -->
@@ -267,7 +295,37 @@ import { FormsModule } from '@angular/forms';
               </table>
             </div>
           </div>
-        </div>
+        </ng-container>
+
+        <ng-container *ngIf="currentView === 'architecture'">
+          <div class="cw-page-header">
+            <div>
+              <p class="cw-page-sub">System Overview</p>
+              <h1 class="cw-page-title">Architecture <span class="gradient-text">Diagram</span></h1>
+            </div>
+          </div>
+          <div class="cw-panel" style="padding: 3rem; text-align: center; border: 1px dashed rgba(255,255,255,0.2);">
+             <h2 style="color: var(--text-primary); margin-bottom: 1rem;">ClaimWise AI Multimodal Architecture</h2>
+             <div style="display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;">
+                <div style="padding: 1.5rem; background: rgba(79,142,247,0.1); border-radius: 8px; border: 1px solid rgba(79,142,247,0.3); width: 200px;">
+                  <h3 style="color: var(--accent-blue);">Frontend</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-secondary);">Angular 20, Bootstrap 5</p>
+                </div>
+                <div style="padding: 1.5rem; background: rgba(52,211,153,0.1); border-radius: 8px; border: 1px solid rgba(52,211,153,0.3); width: 200px;">
+                  <h3 style="color: var(--accent-emerald);">Backend API</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-secondary);">FastAPI, Python, JWT</p>
+                </div>
+                <div style="padding: 1.5rem; background: rgba(167,139,250,0.1); border-radius: 8px; border: 1px solid rgba(167,139,250,0.3); width: 200px;">
+                  <h3 style="color: var(--accent-violet);">AI Engine</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-secondary);">TensorFlow, CNN, SHAP, Grad-CAM</p>
+                </div>
+                <div style="padding: 1.5rem; background: rgba(251,191,36,0.1); border-radius: 8px; border: 1px solid rgba(251,191,36,0.3); width: 200px;">
+                  <h3 style="color: var(--accent-amber);">Database</h3>
+                  <p style="font-size: 0.8rem; color: var(--text-secondary);">PostgreSQL</p>
+                </div>
+             </div>
+          </div>
+        </ng-container>
       </main>
     </div>
   `,
@@ -1222,6 +1280,7 @@ import { FormsModule } from '@angular/forms';
   `],
 })
 export class AppComponent implements OnInit {
+  currentView = 'dashboard';
   claimantName = 'Ava Thompson';
   policyNumber = 'POL-2048';
   damageType = 'Rear bumper';
@@ -1325,5 +1384,9 @@ export class AppComponent implements OnInit {
     if (action === 'approve') { this.reviewState = 'Approved'; return; }
     if (action === 'reject') { this.reviewState = 'Rejected'; return; }
     this.reviewState = 'Needs Correction';
+  }
+
+  generatePdfReport(): void {
+    alert('Mock: Generating comprehensive PDF report including claim details, Grad-CAM heatmaps, and AI confidence score...');
   }
 }

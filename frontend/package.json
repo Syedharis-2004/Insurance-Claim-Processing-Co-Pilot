@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "ng serve --host 127.0.0.1 --port 4200",
-    "build": "ng build",
+    "start": "ng serve --host 127.0.0.1 --port 4201",
+    "build": "ng build --configuration production",
     "test": "ng test --watch=false --browsers=ChromeHeadless"
   },
   "dependencies": {
