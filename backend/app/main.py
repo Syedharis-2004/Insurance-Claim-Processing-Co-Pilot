@@ -20,6 +20,7 @@ app.add_middleware(
         "http://127.0.0.1:4201",
         "https://insurance-claim-co-pilot.vercel.app",
         "https://frontend-dun-delta-72.vercel.app",
+        "https://insurance-claim-processing-co-pilot.onrender.com",
         "*"
     ],
     allow_credentials=True,
