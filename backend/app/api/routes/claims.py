@@ -28,6 +28,8 @@ class ClaimItem(BaseModel):
     fraud_risk_score: float
     status: str
     created_at: str
+    classification: Optional[str] = None
+    explanation: Optional[str] = None
 
 class RecommendationResponse(BaseModel):
     claim_id: str
@@ -54,7 +56,9 @@ def list_claims(db: Session = Depends(get_db)):
             estimated_cost_range=c.estimated_cost_range or "",
             fraud_risk_score=c.fraud_risk_score or 0.0,
             status=c.status,
-            created_at=c.created_at.isoformat() if c.created_at else ""
+            created_at=c.created_at.isoformat() if c.created_at else "",
+            classification=c.classification,
+            explanation=c.explanation
         ))
     return result
 
@@ -116,6 +120,8 @@ def analyze_claim(db: Session = Depends(get_db)):
     )
     
     # Update the DB with the actual AI results
+    claim.classification = assessment.classification
+    claim.explanation = assessment.explanation
     claim.severity = assessment.severity
     claim.confidence_score = assessment.confidence_score
     claim.estimated_cost_range = assessment.estimated_cost_range

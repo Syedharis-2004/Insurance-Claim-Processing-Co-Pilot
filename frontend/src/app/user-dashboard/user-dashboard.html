@@ -1,0 +1,112 @@
+<!-- PAGE HEADER -->
+<div class="cw-page-header">
+  <div>
+    <p class="cw-page-sub">User Portal</p>
+    <h1 class="cw-page-title">Submit a <span class="gradient-text">New Claim</span></h1>
+  </div>
+</div>
+
+<div class="cw-content-grid">
+  <!-- LEFT: CLAIM INTAKE -->
+  <div class="cw-panel" id="claim-intake-panel">
+    <div class="cw-panel-header">
+      <div>
+        <h2 class="cw-panel-title">New Claim Intake</h2>
+        <p class="cw-panel-sub">Multimodal AI-assisted submission</p>
+      </div>
+      <span class="cw-badge badge-blue">Multimodal</span>
+    </div>
+
+    <form class="cw-form" (ngSubmit)="submitClaim()">
+      <div class="cw-form-row">
+        <div class="cw-field">
+          <label class="cw-label">Claimant Name</label>
+          <div class="cw-input-wrap">
+            <span class="cw-input-icon">👤</span>
+            <input class="cw-input" [(ngModel)]="claimantName" name="claimantName" placeholder="Full legal name" />
+          </div>
+        </div>
+        <div class="cw-field">
+          <label class="cw-label">Policy Number</label>
+          <div class="cw-input-wrap">
+            <span class="cw-input-icon">🔖</span>
+            <input class="cw-input" [(ngModel)]="policyNumber" name="policyNumber" placeholder="POL-XXXX" />
+          </div>
+        </div>
+      </div>
+
+      <div class="cw-field">
+        <label class="cw-label">Damage Category</label>
+        <div class="cw-input-wrap">
+          <span class="cw-input-icon">🏷️</span>
+          <input class="cw-input" [(ngModel)]="damageType" name="damageType" placeholder="e.g. Rear bumper, Roof damage" />
+        </div>
+      </div>
+
+      <div class="cw-field">
+        <label class="cw-label">Damage Description</label>
+        <textarea class="cw-input cw-textarea" rows="3" [(ngModel)]="damageDescription" name="damageDescription" placeholder="Describe the damage in detail…"></textarea>
+      </div>
+
+      <div class="cw-upload-row">
+        <label class="cw-upload-box" for="imageUpload">
+          <span class="cw-upload-icon">🖼️</span>
+          <span class="cw-upload-label">Upload Image</span>
+          <span class="cw-upload-hint">PNG, JPG up to 10MB</span>
+          <input type="file" id="imageUpload" class="cw-file-hidden" accept="image/*" aria-label="Damage image upload" (change)="onImageSelected($event)" />
+        </label>
+        <label class="cw-upload-box" for="docUpload">
+          <span class="cw-upload-icon">📄</span>
+          <span class="cw-upload-label">Upload Document</span>
+          <span class="cw-upload-hint">PDF, DOC up to 25MB</span>
+          <input type="file" id="docUpload" class="cw-file-hidden" accept=".pdf,.doc,.docx" aria-label="Supporting document upload" (change)="onDocSelected($event)" />
+        </label>
+      </div>
+
+      <div class="cw-form-actions">
+        <button class="btn-primary-pill btn-wide" type="submit" [class.btn-loading]="isLoading">
+          <span *ngIf="!isLoading">⚡ Submit Claim</span>
+          <span *ngIf="isLoading" class="cw-spinner-wrap"><span class="cw-spinner"></span> Processing…</span>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- RIGHT: MY CLAIMS STATUS (POLLS LIVE STATUS) -->
+  <div class="cw-panel cw-claims-table-panel" id="user-claims-panel">
+    <div class="cw-panel-header">
+      <div>
+        <h2 class="cw-panel-title">My Submitted Claims</h2>
+        <p class="cw-panel-sub">Real-time processing & approval status</p>
+      </div>
+    </div>
+    
+    <div class="cw-table-wrap" *ngIf="myClaims.length > 0; else noClaims">
+      <table class="cw-table">
+        <thead>
+          <tr>
+            <th>Claim ID</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of myClaims">
+            <td class="cw-table-id">{{ c.id }}</td>
+            <td>{{ c.type }}</td>
+            <td><span class="cw-badge" [ngClass]="'badge-' + c.statusColor">{{ c.status }}</span></td>
+            <td class="accent-emerald">{{ c.amount }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ng-template #noClaims>
+      <div style="text-align: center; padding: 3rem 1.5rem; color: var(--text-muted);">
+        <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">📋</span>
+        No claims submitted yet. Use the form on the left to submit your first claim.
+      </div>
+    </ng-template>
+  </div>
+</div>

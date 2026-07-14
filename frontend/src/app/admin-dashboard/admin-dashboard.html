@@ -1,0 +1,196 @@
+<!-- PAGE HEADER -->
+<div class="cw-page-header">
+  <div>
+    <p class="cw-page-sub">Insurance Claims Management</p>
+    <h1 class="cw-page-title">AI-Powered <span class="gradient-text">Admin Dashboard</span></h1>
+  </div>
+  <div class="cw-header-meta">
+    <span class="cw-timestamp">Last updated: just now</span>
+    <button class="btn-icon" title="Refresh" (click)="fetchClaims()">↻</button>
+  </div>
+</div>
+
+<!-- STATS ROW -->
+<div class="cw-stats-grid">
+  <div class="cw-stat-card" *ngFor="let stat of stats; let i = index" [style.--card-delay]="(i * 80) + 'ms'">
+    <div class="cw-stat-icon" [class]="'icon-' + stat.color">{{ stat.icon }}</div>
+    <div class="cw-stat-info">
+      <span class="cw-stat-label">{{ stat.label }}</span>
+      <span class="cw-stat-value">{{ stat.value }}</span>
+    </div>
+    <div class="cw-stat-trend" [class.trend-up]="stat.trend > 0" [class.trend-down]="stat.trend < 0">
+      {{ stat.trend > 0 ? '▲' : '▼' }} {{ stat.trendLabel }}
+    </div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="cw-content-grid">
+  <!-- LEFT: RECENT CLAIMS -->
+  <div class="cw-panel cw-claims-table-panel" id="recent-claims-panel">
+    <div class="cw-panel-header">
+      <div>
+        <h2 class="cw-panel-title">Recent Claims</h2>
+        <p class="cw-panel-sub">Select a claim to review and analyze</p>
+      </div>
+    </div>
+    <div class="cw-table-wrap">
+      <table class="cw-table">
+        <thead>
+          <tr>
+            <th>Claim ID</th>
+            <th>Claimant</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of recentClaims" (click)="selectClaim(c)" [style.cursor]="'pointer'" [class.selected-row]="c.id === activeClaimId">
+            <td class="cw-table-id">{{ c.id }}</td>
+            <td>{{ c.claimant }}</td>
+            <td>{{ c.type }}</td>
+            <td><span class="cw-badge" [ngClass]="'badge-' + c.statusColor">{{ c.status }}</span></td>
+            <td class="accent-emerald">{{ c.amount }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RIGHT: AI ANALYSIS -->
+  <div class="cw-panel cw-ai-panel" id="ai-analysis-panel">
+    <div class="cw-panel-header">
+      <div>
+        <h2 class="cw-panel-title">AI Analysis</h2>
+        <p class="cw-panel-sub">Real-time risk assessment</p>
+      </div>
+      <span class="cw-badge badge-violet">Live</span>
+    </div>
+
+    <div class="cw-claim-id">
+      <span class="cw-label">Active Claim</span>
+      <span class="cw-claim-id-value">{{ activeClaimId || 'None Selected' }}</span>
+    </div>
+
+    <div *ngIf="activeClaimId; else selectPrompt">
+      <div class="cw-ai-metrics">
+        <div class="cw-metric-row">
+          <span class="cw-metric-label">Classification</span>
+          <span class="cw-metric-value">{{ aiResult.classification }}</span>
+        </div>
+        <div class="cw-metric-row">
+          <span class="cw-metric-label">Severity</span>
+          <span class="cw-badge" [ngClass]="severityClass">{{ aiResult.severity }}</span>
+        </div>
+        <div class="cw-metric-row">
+          <span class="cw-metric-label">Confidence</span>
+          <div class="cw-progress-wrap">
+            <div class="cw-progress-bar">
+              <div class="cw-progress-fill cw-progress-blue" [style.width]="aiResult.confidence + '%'"></div>
+            </div>
+            <span class="cw-progress-label">{{ aiResult.confidence }}%</span>
+          </div>
+        </div>
+        <div class="cw-metric-row">
+          <span class="cw-metric-label">Estimated Cost</span>
+          <span class="cw-metric-value accent-emerald">{{ aiResult.estimatedCost }}</span>
+        </div>
+        <div class="cw-metric-row">
+          <span class="cw-metric-label">Fraud Risk</span>
+          <div class="cw-progress-wrap">
+            <div class="cw-progress-bar">
+              <div class="cw-progress-fill" [ngClass]="fraudRiskClass" [style.width]="aiResult.fraudRisk + '%'"></div>
+            </div>
+            <span class="cw-progress-label" [ngClass]="fraudRiskTextClass">{{ aiResult.fraudRisk }}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cw-explanation">
+        <span class="cw-expl-label">🔍 AI Explanation</span>
+        <p class="cw-expl-text">{{ aiResult.explanation }}</p>
+      </div>
+
+      <div class="cw-heatmap-section" style="margin-top: 1rem;">
+        <span class="cw-expl-label">🌡️ Grad-CAM Heatmap</span>
+        <div class="cw-heatmap-img" style="height: 120px; background: linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(245,158,11,0.2) 50%, rgba(16,185,129,0.2) 100%); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.5rem;">
+          [Heatmap Visualization]
+        </div>
+      </div>
+
+      <div class="cw-feature-importance" style="margin-top: 1rem;">
+        <span class="cw-expl-label">📊 Feature Importance</span>
+        <div class="cw-metric-row" style="margin-bottom: 0.4rem;">
+          <span class="cw-metric-label" style="font-size: 0.7rem;">Panel Distortion</span>
+          <div class="cw-progress-wrap"><div class="cw-progress-bar" style="height: 4px;"><div class="cw-progress-fill cw-progress-rose" style="width: 85%"></div></div></div>
+        </div>
+        <div class="cw-metric-row" style="margin-bottom: 0.4rem;">
+          <span class="cw-metric-label" style="font-size: 0.7rem;">Paint Scratches</span>
+          <div class="cw-progress-wrap"><div class="cw-progress-bar" style="height: 4px;"><div class="cw-progress-fill cw-progress-amber" style="width: 45%"></div></div></div>
+        </div>
+        <div class="cw-metric-row" style="margin-bottom: 0.4rem;">
+          <span class="cw-metric-label" style="font-size: 0.7rem;">Structural Integrity</span>
+          <div class="cw-progress-wrap"><div class="cw-progress-bar" style="height: 4px;"><div class="cw-progress-fill cw-progress-emerald" style="width: 15%"></div></div></div>
+        </div>
+      </div>
+    </div>
+    
+    <ng-template #selectPrompt>
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        Select a claim from the table to view AI Analysis and process review.
+      </div>
+    </ng-template>
+  </div>
+</div>
+
+<!-- BOTTOM GRID -->
+<div class="cw-bottom-grid" *ngIf="activeClaimId">
+  <!-- REVIEW WORKFLOW -->
+  <div class="cw-panel" id="review-workflow-panel">
+    <div class="cw-panel-header">
+      <div>
+        <h2 class="cw-panel-title">Review Workflow</h2>
+        <p class="cw-panel-sub">Human-in-the-loop decisions</p>
+      </div>
+    </div>
+    <div class="cw-review-state">
+      <span class="cw-review-state-label">Current State</span>
+      <span class="cw-review-badge" [ngClass]="reviewBadgeClass">{{ reviewState }}</span>
+    </div>
+    <div class="cw-review-actions">
+      <button class="btn-action btn-approve" (click)="submitReview('approve')">
+        <span>✓</span> Approve
+      </button>
+      <button class="btn-action btn-reject" (click)="submitReview('reject')">
+        <span>✗</span> Reject
+      </button>
+      <button class="btn-action btn-modify" (click)="submitReview('modify')">
+        <span>✎</span> Modify
+      </button>
+    </div>
+    <button class="btn-action btn-pdf" (click)="generatePdfReport()" style="margin-top: 0.5rem; width: 100%; background: rgba(79, 142, 247, 0.12); color: var(--accent-blue); border-color: rgba(79, 142, 247, 0.25);">
+      <span>📄</span> Download PDF Report
+    </button>
+  </div>
+
+  <!-- ROI CALCULATOR -->
+  <div class="cw-panel cw-roi-panel" id="roi-panel">
+    <div class="cw-panel-header">
+      <div>
+        <h2 class="cw-panel-title">ROI Calculator</h2>
+        <p class="cw-panel-sub">Performance impact metrics</p>
+      </div>
+      <span class="cw-badge badge-emerald">Live</span>
+    </div>
+    <div class="cw-roi-metrics">
+      <div class="cw-roi-item" *ngFor="let roi of roiMetrics">
+        <div class="cw-roi-icon">{{ roi.icon }}</div>
+        <div class="cw-roi-info">
+          <span class="cw-roi-label">{{ roi.label }}</span>
+          <span class="cw-roi-value">{{ roi.value }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

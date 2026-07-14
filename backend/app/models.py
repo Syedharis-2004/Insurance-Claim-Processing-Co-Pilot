@@ -25,6 +25,8 @@ class Claim(Base):
     estimated_cost_range = Column(String(120))
     fraud_risk_score = Column(Float)
     status = Column(String(50), default="Pending Review", index=True)
+    classification = Column(String(120), default="Pending Analysis")
+    explanation = Column(Text, default="AI has not completed analysis on this claim.")
     reviewer_notes = Column(Text)
     created_at = Column(DateTime, default=func.now(), index=True)
 
