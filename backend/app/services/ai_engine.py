@@ -1,9 +1,14 @@
 import os
 import io
-import cv2
 import numpy as np
 from dataclasses import dataclass
 from typing import Any
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
 
 try:
     import tensorflow as tf
@@ -39,6 +44,9 @@ def get_model():
 
 def generate_gradcam(model, img_array: np.ndarray, pred_index: int, claim_id: str) -> str:
     """Generate a Grad-CAM heatmap and save it as a PNG. Returns file path."""
+    if not CV2_AVAILABLE or not TF_AVAILABLE:
+        return ""
+
     # Build a sub-model outputting the last conv layer + predictions
     last_conv_layer = None
     for layer in reversed(model.layers):
@@ -97,7 +105,7 @@ def run_cnn_damage_assessment(
     gradcam_path = ""
 
     model = get_model()
-    if model and image_bytes:
+    if model and image_bytes and CV2_AVAILABLE and TF_AVAILABLE:
         try:
             nparr = np.frombuffer(image_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -137,7 +145,7 @@ def run_cnn_damage_assessment(
             print(f"[AI Engine] CNN pipeline error: {e}")
             cost_range = "$1,800 - $3,200"
     else:
-        # Deterministic fallback when TF is not installed or no image
+        # Deterministic fallback when TF/cv2 is not installed or no image
         cost_range = "$1,800 - $3,200"
 
     explanation = (
